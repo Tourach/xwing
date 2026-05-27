@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+ ===================================================================================
+    PROJECT: Death Star Trench Run - Ultimate Arcade Edition (JS/Canvas Pure Client)
+    COPYRIGHT: MIT LICENSE, 2026
+    GAME DESIGNER: Guillaume Ehinger
+    LINKEDIN: https://www.linkedin.com/in/gehinger/
+ ===================================================================================
+ -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Star Trench Run - Session Arcade Edition</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #0b0c10;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        /* Arcade Cabinet Wrapper Alignment Layout */
+        #arcadeCabinet {
+            display: flex;
+            align-items: stretch;
+            gap: 20px;
+            background-color: #12131c;
+            padding: 20px;
+            border-radius: 12px;
+            border: 3px solid #ff3333;
+            box-shadow: 0 0 35px rgba(255, 0, 0, 0.25);
+            position: relative;
+        }
+        .sidePanel {
+            width: 180px;
+            background-color: #1a1c28;
+            border: 2px solid #3388ff;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: inset 0 0 10px rgba(51, 136, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidePanel h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #3388ff;
+            text-align: center;
+            border-bottom: 1px dashed #3388ff;
+            padding-bottom: 5px;
+        }
+        .controlItem {
+            margin-bottom: 12px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .keyBadge {
+            background: #222;
+            color: #ffaa00;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #ffaa00;
+            font-weight: bold;
+        }
+        #gameContainer {
+            position: relative;
+            border: 2px solid #ff3333;
+            border-radius: 4px;
+        }
+        canvas {
+            background-color: #050505;
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 10;
+        }
+        #shieldStatus { color: #55f9ff; }
+        #scoreDisplayBoard {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+        }
+        .bigScoreLabel { font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        .bigScoreVal { font-size: 32px; font-weight: bold; color: #ffaa00; font-family: Impact, sans-serif; text-shadow: 0 0 10px rgba(255,170,0,0.3); }
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            display: none;
+            z-index: 20;
+        }
+        h1 { color: #ff3333; margin-bottom: 10px; font-size: 40px;}
+        button {
+            background: #222;
+            color: #fff;
+            border: 2px solid #ff3333;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+        button:hover { background: #ff3333; color: black; }
+        
+        /* Discreet Designer Signature styling at the bottom right corner */
+        #designerSignature {
+            position: absolute;
+            bottom: 4px;
+            right: 15px;
+            font-size: 9px;
+            color: #444d56;
+            text-align: right;
+            pointer-events: auto;
+        }
+        #designerSignature a {
+            color: #444d56;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        #designerSignature a:hover {
+            color: #3388ff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="arcadeCabinet">
+    <div class="sidePanel">
+        <h3>FLIGHT INTEL</h3>
+        <div class="controlItem"><span class="keyBadge">▲</span> / <span class="keyBadge">▼</span> Move Ship Up & Down</div>
+        <div class="controlItem"><span class="keyBadge">◄</span> / <span class="keyBadge">►</span> Forward & Backward</div>
+        <div class="controlItem"><span class="keyBadge">SPACEBAR</span> Tap to Shoot / Hold (1s) for Torpedo</div>
+        <div class="controlItem"><span class="keyBadge">SPACEBAR</span> Press on Game Over to restart!</div>
+        <div style="font-size: 10px; color: #888; margin-top: 15px; line-height: 1.3; border-top: 1px solid #333; padding-top: 10px;">
+            * Interceptors & Bombers have shields (2 hits). Torpedoes strip them instantly!<br><br>
+            * Torpedoes automatically self-detonate at 3/4 screen width to act as a tactical flak burst!
+        </div>
+    </div>
+
+    <div id="gameContainer">
+        <div id="ui">
+            <div>SCORE: <span id="scoreVal">0</span> <span id="bossVal" style="font-size: 13px; color: #aaa; margin-left: 10px;">(Next Boss: 100)</span></div>
+            <div id="shieldStatus">SHIELD: READY</div>
+        </div>
+        
+        <div id="gameOverScreen">
+            <h1>GAME OVER</h1>
+            <p style="font-size: 20px;">Your Final Score: <span id="finalScore">0</span></p>
+            <button onclick="resetGame()">FLY AGAIN (SPACEBAR)</button>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <div class="sidePanel">
+        <h3>HIGH SCORE</h3>
+        <div id="scoreDisplayBoard">
+            <div class="bigScoreLabel">SESSION BEST</div>
+            <div id="highScoreVal" class="bigScoreVal">0</div>
+        </div>
+        <div style="font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #333; padding-top: 10px; line-height: 1.3;">
+            Charged Proton Torpedoes create a massive blue shockwave destroying everything in range!
+        </div>
+    </div>
+
+    <div style="position: absolute; bottom: -25px; left: 0; width: 100%; text-align: center; font-size: 9px; color: #555;">
+        This is a non-profit, fan-made game. Star Wars and related names/indicia are trademarks of & © Lucasfilm Ltd. / The Walt Disney Company.
+    </div>
+    
+    <div id="designerSignature">
+        DESIGNED BY <a href="https://www.linkedin.com/in/gehinger/" target="_blank">GUILLAUME EHINGER</a>, 2026
+    </div>
+</div>
+
+<script>
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// UI Elements Tracking Selectors References
+const scoreVal = document.getElementById("scoreVal");
+const shieldStatus = document.getElementById("shieldStatus");
+const gameOverScreen = document.getElementById("gameOverScreen");
+const finalScore = document.getElementById("finalScore");
+const bossVal = document.getElementById("bossVal");
+const highScoreVal = document.getElementById("highScoreVal");
+
+// Game State Values
+let gameActive = true;
+let score = 0;
+let highScore = 0; 
+let pointsTowardsBoss = 0; 
+let keys = {};
+let spacePressedLastFrame = false;
+let spaceHoldDuration = 0; 
+
+// Weapon Overheat Engine Properties
+let weaponHeat = 0;
+const MAX_HEAT = 100;
+let weaponJammed = false;
+let jamTimer = 0;
+
+// Difficulty scaling pacing loops constants variables
+let gameTime = 0; 
+let enemySpawnTimer = 40; 
+let turretSpawnTimer = 100;
+let specialSpawnTimer = 150; 
+let bossCount = 0;
+
+// Entities arrays
+let player;
+let playerLasers = [];
+let missiles = [];      
+let enemies = [];
+let enemyLasers = [];
+let turrets = [];
+let bombs = [];
+let shockwaves = [];
+let particles = [];
+let stars = [];
+let currentBoss = null; 
+
+let trenchHeightSetting = 50;
+let wallOffset = 0;
+
+// Setup Parallax Starfields
+for(let i=0; i<40; i++) {
+    stars.push({
+        x: Math.random() * canvas.width,
+        y: 50 + Math.random() * (canvas.height - 100),
+        speed: Math.random() * 2 + 0.5,
+        size: Math.random() * 2
+    });
+}
+
+class Player {
+    constructor() {
+        this.x = 100; this.y = 200; this.width = 45; this.height = 30; this.speed = 5;
+        this.hasShield = true; this.shieldRechargeTimer = 0; 
+    }
+
+    update() {
+        if (keys['ArrowUp'] && this.y > trenchHeightSetting + 5) this.y -= this.speed;
+        if (keys['ArrowDown'] && this.y < canvas.height - trenchHeightSetting - this.height - 5) this.y += this.speed;
+        if (keys['ArrowLeft'] && this.x > 5) this.x -= this.speed;
+        if (keys['ArrowRight'] && this.x < canvas.width - this.width - 5) this.x += this.speed;
+
+        if (!this.hasShield) {
+            this.shieldRechargeTimer--;
+            let secondsLeft = Math.ceil(this.shieldRechargeTimer / 60);
+            shieldStatus.innerText = `SHIELD RECHARGING: ${secondsLeft}s`;
+            shieldStatus.style.color = "#ffaa00";
+
+            if (this.shieldRechargeTimer <= 0) {
+                this.hasShield = true;
+                shieldStatus.innerText = "SHIELD: READY";
+                shieldStatus.style.color = "#55f9ff";
+            }
+        }
+    }
+
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.strokeStyle = "#cccccc"; ctx.fillStyle = "#888888"; ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 12); ctx.lineTo(35, 12); ctx.lineTo(45, 15); ctx.lineTo(35, 18); ctx.lineTo(0, 18);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = "#ff5500"; ctx.fillRect(-2, 5, 6, 6); ctx.fillRect(-2, 19, 6, 6);
+        ctx.strokeStyle = "#bbbbbb"; ctx.beginPath();
+        ctx.moveTo(5, 8); ctx.lineTo(15, 2); ctx.lineTo(40, 2);
+        ctx.moveTo(5, 22); ctx.lineTo(15, 28); ctx.lineTo(40, 28);
+        ctx.stroke();
+
+        if (this.hasShield) {
+            ctx.strokeStyle = "rgba(85, 249, 255, 0.6)"; ctx.shadowBlur = 10; ctx.shadowColor = "#55f9ff"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(22, 15, 30, 0, Math.PI * 2); ctx.stroke();
+        }
+
+        if (spaceHoldDuration > 5 && !weaponJammed) {
+            let pct = Math.min(1, spaceHoldDuration / 60); 
+            ctx.shadowBlur = 10 + pct * 15;
+            ctx.shadowColor = pct >= 1 ? "#00ffff" : "#3388ff";
+            ctx.fillStyle = pct >= 1 ? "#ffffff" : "rgba(51,136,255,0.7)";
+            ctx.beginPath(); ctx.arc(45, 15, 3 + pct * 8, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+class TIEFighter {
+    constructor() {
+        this.type = "fighter"; this.x = canvas.width + 50;
+        this.y = trenchHeightSetting + 20 + Math.random() * (canvas.height - trenchHeightSetting*2 - 60);
+        this.width = 30; this.height = 35; this.speed = Math.random() * 1.5 + 2.0; this.shootCooldown = Math.random() * 90 + 70; 
+        this.hp = 1; 
+    }
+    update() {
+        this.x -= this.speed; this.shootCooldown--;
+        if (this.shootCooldown <= 0 && this.x > 0 && this.x < canvas.width) {
+            enemyLasers.push(new Laser(this.x, this.y + this.height/2, -6, 0, "#00ff00"));
+            this.shootCooldown = Math.random() * 100 + 90; 
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.strokeStyle = "#667788"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(0, this.height); ctx.moveTo(this.width, 0); ctx.lineTo(this.width, this.height);
+        ctx.stroke();
+
+        ctx.beginPath(); ctx.moveTo(0, this.height/2); ctx.lineTo(this.width, this.height/2); ctx.stroke();
+        ctx.fillStyle = "#333d48";
+        ctx.beginPath(); ctx.arc(this.width/2, this.height/2, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#ff0000"; ctx.fillRect(this.width/2 - 1, this.height/2 - 1, 2, 2);
+        ctx.restore();
+    }
+}
+
+class TIEBomber {
+    constructor() {
+        this.type = "bomber"; this.width = 36; this.height = 30; this.x = canvas.width + 50;
+        this.y = trenchHeightSetting + 30 + Math.random() * (canvas.height - trenchHeightSetting*2 - 80);
+        this.speed = 1.6; this.bombCooldown = Math.random() * 70 + 40;
+        this.hp = 2; 
+    }
+    update() {
+        this.x -= this.speed; this.bombCooldown--;
+        if (this.bombCooldown <= 0 && this.x > 150 && this.x < canvas.width) {
+            let b = new Bomb(); b.x = this.x + this.width/2; b.y = this.y + this.height; bombs.push(b);
+            this.bombCooldown = Math.random() * 140 + 110;
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.strokeStyle = "#556677"; ctx.lineWidth = 2; ctx.fillStyle = "#2c353f";
+        ctx.beginPath(); ctx.arc(10, this.height/2, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(26, this.height/2, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillRect(8, this.height/2 - 3, 20, 6);
+        ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(0, this.height - 2); ctx.moveTo(this.width, 2); ctx.lineTo(this.width, this.height - 2); ctx.stroke();
+        
+        if (this.hp > 1) {
+            ctx.strokeStyle = "rgba(200, 0, 255, 0.5)"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(this.width/2, this.height/2, 22, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class TIEInterceptor {
+    constructor() {
+        this.type = "interceptor"; this.width = 28; this.height = 28; this.x = canvas.width + 50;
+        this.y = trenchHeightSetting + 20 + Math.random() * (canvas.height - trenchHeightSetting*2 - 60);
+        this.speed = 4.8; this.shootCooldown = Math.random() * 40 + 30;
+        this.hp = 2; 
+    }
+    update() {
+        this.x -= this.speed;
+        let targetY = player.y + 2;
+        if (this.y < targetY) this.y += 1; if (this.y > targetY) this.y -= 1;
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0 && this.x > 0 && this.x < canvas.width) {
+            let angle = Math.atan2((player.y + 15) - this.y, player.x - this.x);
+            enemyLasers.push(new Laser(this.x, this.y + this.height/2, Math.cos(angle)*7, Math.sin(angle)*7, "#ff0055"));
+            this.shootCooldown = Math.random() * 60 + 40;
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.strokeStyle = "#778899"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10, this.height/2); ctx.lineTo(0, this.height); ctx.moveTo(this.width, 0); ctx.lineTo(this.width - 10, this.height/2); ctx.lineTo(this.width, this.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(6, this.height/2); ctx.lineTo(this.width - 6, this.height/2); ctx.stroke();
+        ctx.fillStyle = "#222a33"; ctx.beginPath(); ctx.arc(this.width/2, this.height/2, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        if (this.hp > 1) {
+            ctx.strokeStyle = "rgba(200, 0, 255, 0.5)"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(this.width/2, this.height/2, 18, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class TorpedoMissile {
+    constructor(x, y) {
+        this.x = x; this.y = y; this.width = 20; this.height = 8; this.speed = 7;
+    }
+    update() { 
+        this.x += this.speed; 
+        // FIXED: Instantly triggers flak self-detonation cycle if it scales past 3/4 mark width (600px out of 800px)
+        if (this.x >= 600) {
+            triggerProtonDetonation(this.x, this.y);
+            return false; // Safely wipes it out of active registers array bounds loop
+        }
+        return this.x < canvas.width + 50; 
+    }
+    draw() {
+        ctx.save(); ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 2; ctx.shadowBlur = 12; ctx.shadowColor = "#00ffff";
+        ctx.fillRect(this.x, this.y - 2, this.width, this.height);
+        ctx.fillStyle = "rgba(0, 255, 255, 0.4)"; ctx.fillRect(this.x - 15, this.y - 1, 15, 6);
+        ctx.restore();
+    }
+}
+
+class Bomb {
+    constructor() { this.x = 0; this.y = 0; this.width = 12; this.height = 12; this.speedX = -4.5; this.fuse = 135; }
+    update() {
+        this.x += this.speedX; this.fuse--;
+        if (this.fuse <= 0) {
+            let s = new Shockwave(); s.x = this.x; s.y = this.y; s.maxRadius = 70; s.color = "#44ccff"; shockwaves.push(s);
+            createExplosion(this.x, this.y, "#44aaff", 20); return false;
+        }
+        return true;
+    }
+    draw() {
+        ctx.save(); let flash = (this.fuse % 10 < 5 && this.fuse < 45) ? "#ff2222" : "#00aaff";
+        ctx.fillStyle = flash; ctx.shadowBlur = 6; ctx.shadowColor = flash;
+        ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI*2); ctx.fill(); ctx.restore();
+    }
+}
+
+class Shockwave {
+    constructor() { this.x = 0; this.y = 0; this.radius = 5; this.maxRadius = 70; this.speed = 2.5; this.alpha = 1; this.color = "#44ccff"; this.damageEnemies = false; }
+    update() { this.radius += this.speed; this.alpha -= 0.025; return this.radius < this.maxRadius; }
+    draw() { ctx.save(); ctx.globalAlpha = Math.max(0, this.alpha); ctx.strokeStyle = this.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+}
+
+class Turret {
+    constructor() {
+        this.isTop = Math.random() > 0.5; this.width = 30; this.height = 25; this.x = canvas.width + 50;
+        this.y = this.isTop ? trenchHeightSetting : canvas.height - trenchHeightSetting - this.height; this.shootCooldown = Math.random() * 140 + 80; 
+    }
+    update() {
+        this.x -=(2); this.shootCooldown--;
+        if (this.shootCooldown <= 0 && this.x > 0 && this.x < canvas.width) {
+            let angle = Math.atan2((player.y + 15) - this.y, player.x - this.x);
+            enemyLasers.push(new Laser(this.x + this.width/2, this.y + this.height/2, Math.cos(angle)*5, Math.sin(angle)*5, "#00ff00"));
+            let cooldownModifier = Math.max(40, 100 - (bossCount * 15)); this.shootCooldown = Math.random() * cooldownModifier + 60;
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.fillStyle = "#555"; ctx.strokeStyle = "#888"; ctx.lineWidth = 2;
+        if (this.isTop) {
+            ctx.fillRect(0, 0, this.width, 8); ctx.strokeRect(0, 0, this.width, 8); ctx.beginPath(); ctx.arc(this.width/2, 8, 10, 0, Math.PI); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = "#00ff00"; ctx.beginPath(); ctx.moveTo(this.width/2, 8); ctx.lineTo(this.width/2 - 15, 20); ctx.stroke();
+        } else {
+            ctx.fillRect(0, this.height - 8, this.width, 8); ctx.strokeRect(0, this.height - 8, this.width, 8); ctx.beginPath(); ctx.arc(this.width/2, this.height - 8, 10, Math.PI, 0); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = "#00ff00"; ctx.beginPath(); ctx.moveTo(this.width/2, this.height - 8); ctx.lineTo(this.width/2 - 15, this.height - 20); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class StarDestroyer {
+    constructor() {
+        this.width = 240; this.height = 160; this.x = canvas.width + 100; this.y = canvas.height / 2 - this.height / 2;
+        this.maxHp = 100 + (bossCount * 30); this.hp = this.maxHp; this.entryMode = true;
+        this.t1Offset = { x: 50, y: 35 }; this.t2Offset = { x: 50, y: 125 }; this.bellyOffset = { x: 80, y: 80 };
+        this.rateModifier = Math.max(20, 60 - (bossCount * 10)); this.t1Cooldown = 40; this.t2Cooldown = 70; this.bellyCooldown = 100;
+    }
+    update() {
+        if (this.entryMode) { this.x -= 1.5; if (this.x <= canvas.width - this.width - 20) this.entryMode = false; }
+        this.t1Cooldown--; this.t2Cooldown--; this.bellyCooldown--;
+        let t1X = this.x + this.t1Offset.x; let t1Y = this.y + this.t1Offset.y; let t2X = this.x + this.t2Offset.x; let t2Y = this.y + this.t2Offset.y;
+        if (this.t1Cooldown <= 0) {
+            let angle = Math.atan2((player.y + 15) - t1X, player.x - t1X); enemyLasers.push(new Laser(t1X, t1Y, Math.cos(angle)*5.5, Math.sin(angle)*5.5, "#00ff00")); this.t1Cooldown = Math.random() * 40 + this.rateModifier;
+        }
+        if (this.t2Cooldown <= 0) {
+            let angle = Math.atan2((player.y + 15) - t2Y, player.x - t2X); enemyLasers.push(new Laser(t2X, t2Y, Math.cos(angle)*5.5, Math.sin(angle)*5.5, "#00ff00")); this.t2Cooldown = Math.random() * 40 + this.rateModifier;
+        }
+        if (this.bellyCooldown <= 0) {
+            let rand = Math.random();
+            if (rand < 0.4) {
+                let s = new TIEFighter(); s.x = this.x + this.bellyOffset.x; s.y = this.y + this.bellyOffset.y; enemies.push(s);
+            } else if (rand < 0.7) {
+                let s = new TIEBomber(); s.x = this.x + this.bellyOffset.x; s.y = this.y + this.bellyOffset.y; enemies.push(s);
+            } else {
+                let s = new TIEInterceptor(); s.x = this.x + this.bellyOffset.x; s.y = this.y + this.bellyOffset.y; enemies.push(s);
+            }
+            this.bellyCooldown = Math.random() * 90 + 60;
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.fillStyle = "#4a4f58"; ctx.strokeStyle = "#717987"; ctx.lineWidth = 3; ctx.beginPath();
+        ctx.moveTo(this.width, this.height/2); ctx.lineTo(0, 15); ctx.lineTo(35, this.height/2 - 10); ctx.lineTo(25, this.height/2); ctx.lineTo(35, this.height/2 + 10); ctx.lineTo(0, this.height - 15);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#32353b"; ctx.fillRect(8, this.height/2 - 20, 35, 40); ctx.strokeRect(8, this.height/2 - 20, 35, 40);
+        ctx.fillStyle = "rgba(100, 210, 255, 0.35)"; ctx.beginPath(); ctx.arc(this.bellyOffset.x, this.bellyOffset.y, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#ff3333"; ctx.fillRect(this.t1Offset.x - 3, this.t1Offset.y - 3, 6, 6); ctx.fillRect(this.t2Offset.x - 3, this.t2Offset.y - 3, 6, 6);
+        ctx.restore();
+
+        ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(canvas.width / 2 - 150, 15, 300, 18); ctx.strokeStyle = "#ff3333"; ctx.strokeRect(canvas.width / 2 - 150, 15, 300, 18);
+        let pct = Math.max(0, this.hp / this.maxHp); ctx.fillStyle = "#ff3333"; ctx.fillRect(canvas.width / 2 - 150 + 2, 15 + 2, (300 - 4) * pct, 14);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 11px Courier New"; ctx.textAlign = "center";
+        ctx.fillText(`STAR DESTROYER MODEL MK-${bossCount + 1}`, canvas.width / 2, 28);
+    }
+}
+
+class Laser {
+    constructor(x, y, dx, dy, color) { this.x = x; this.y = y; this.dx = dx; this.dy = dy; this.color = color; this.width = 15; this.height = 3; }
+    update() { this.x += this.dx; this.y += this.dy; }
+    draw() { ctx.fillStyle = this.color; ctx.shadowBlur = 8; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.shadowBlur = 0; }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y; this.dx = (Math.random() - 0.5) * 6; this.dy = (Math.random() - 0.5) * 6;
+        this.radius = Math.random() * 3 + 1; this.alpha = 1; this.color = color;
+    }
+    update() { this.x += this.dx; this.y += this.dy; this.alpha -= 0.02; }
+    draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+}
+
+function createExplosion(x, y, color = "#ff5500", count = 15) { for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color)); }
+
+function drawTrenches() {
+    if (!currentBoss || currentBoss.entryMode) { wallOffset -= 2; if (wallOffset <= -40) wallOffset = 0; }
+    ctx.fillStyle = "#2a2d32"; ctx.strokeStyle = "#15171a"; ctx.lineWidth = 3;
+    ctx.fillRect(0, 0, canvas.width, trenchHeightSetting); ctx.fillRect(0, canvas.height - trenchHeightSetting, canvas.width, trenchHeightSetting);
+    ctx.strokeStyle = "#444"; ctx.lineWidth = 1;
+    for (let x = wallOffset; x < canvas.width + 40; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, trenchHeightSetting); ctx.moveTo(x, canvas.height - trenchHeightSetting); ctx.lineTo(x, canvas.height); ctx.stroke();
+        ctx.strokeRect(x + 5, trenchHeightSetting - 40, 20, 20); ctx.strokeRect(x + 10, canvas.height - trenchHeightSetting + 15, 25, 15);
+    }
+    ctx.strokeStyle = "#666"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, trenchHeightSetting); ctx.lineTo(canvas.width, trenchHeightSetting); ctx.moveTo(0, canvas.height - trenchHeightSetting); ctx.lineTo(canvas.width, canvas.height - trenchHeightSetting);
+    ctx.stroke();
+}
+
+function checkCollision(rect1, rect2) { return rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y; }
+
+function handlePlayerHit() {
+    if (player.hasShield) {
+        player.hasShield = false; player.shieldRechargeTimer = 1800; createExplosion(player.x + player.width, player.y + player.height/2, "#55f9ff", 20);
+    } else {
+        createExplosion(player.x + player.width/2, player.y + player.height/2, "#ff3300", 35);
+        gameActive = false; gameOverScreen.style.display = "flex"; finalScore.innerText = score;
+        if (score > highScore) { highScore = score; highScoreVal.innerText = highScore; }
+    }
+}
+
+function triggerTacticalSquad() {
+    let centerY = trenchHeightSetting + 60 + Math.random() * (canvas.height - trenchHeightSetting*2 - 120);
+    let type = Math.random() > 0.5 ? "chevron" : "wall";
+    if (type === "chevron") {
+        let t1 = new TIEFighter(); t1.x = canvas.width + 50; t1.y = centerY; enemies.push(t1);
+        let t2 = new TIEFighter(); t2.x = canvas.width + 90; t2.y = centerY - 45; enemies.push(t2);
+        let t3 = new TIEFighter(); t3.x = canvas.width + 90; t3.y = centerY + 45; enemies.push(t3);
+    } else {
+        for(let i = -1; i <= 1; i++) { let t = new TIEFighter(); t.x = canvas.width + 50; t.y = centerY + (i * 45); enemies.push(t); }
+    }
+}
+
+function triggerProtonDetonation(x, y) {
+    let bombRadiusShockwave = new Shockwave();
+    bombRadiusShockwave.x = x; bombRadiusShockwave.y = y; bombRadiusShockwave.radius = 5; bombRadiusShockwave.maxRadius = 145; bombRadiusShockwave.speed = 4;
+    bombRadiusShockwave.color = "#00ffff"; bombRadiusShockwave.damageEnemies = true; 
+    shockwaves.push(bombRadiusShockwave);
+    createExplosion(x, y, "#00ffff", 30);
+}
+
+function addPoints(pts) {
+    score += pts; scoreVal.innerText = score;
+    trenchHeightSetting = Math.min(85, 50 + Math.floor(score / 50) * 4); 
+
+    if (!currentBoss) {
+        pointsTowardsBoss += pts; let rem = Math.max(0, 100 - pointsTowardsBoss); bossVal.innerText = `(Next Boss: ${rem})`;
+        if (pointsTowardsBoss >= 100) { currentBoss = new StarDestroyer(); bossVal.innerText = `(BOSS ENGAGED)`; }
+    }
+}
+
+function update() {
+    if (!gameActive) return;
+    gameTime++; player.update();
+
+    if (weaponJammed) { jamTimer--; if (jamTimer <= 0) { weaponJammed = false; weaponHeat = 0; } } 
+    else { if (weaponHeat > 0) weaponHeat -= 0.35; }
+
+    stars.forEach(star => {
+        if (!currentBoss) star.x -= star.speed; else if (currentBoss.entryMode) star.x -= 0.4;
+        if(star.x < 0) star.x = canvas.width;
+    });
+
+    // Spacebar Fire & Hold Charging Logic
+    if (keys[' '] || keys['Spacebar']) {
+        if (!weaponJammed) spaceHoldDuration++;
+        spacePressedLastFrame = true;
+    } else {
+        if (spacePressedLastFrame && !weaponJammed) {
+            if (spaceHoldDuration >= 60) { 
+                let m = new TorpedoMissile(player.x + 45, player.y + 15); missiles.push(m);
+            } else {
+                playerLasers.push(new Laser(player.x + 35, player.y + 2, 8, 0, "#ff3333")); 
+                playerLasers.push(new Laser(player.x + 35, player.y + 28, 8, 0, "#ff3333"));
+                weaponHeat += 7; if (weaponHeat >= MAX_HEAT) { weaponJammed = true; jamTimer = 120; }
+            }
+        }
+        spaceHoldDuration = 0; spacePressedLastFrame = false;
+    }
+
+    if (!currentBoss) {
+        enemySpawnTimer--; let baseRate = Math.max(35, 150 - (bossCount * 30)); 
+        if (enemySpawnTimer <= 0) {
+            if (bossCount > 0 && Math.random() > 0.65) triggerTacticalSquad(); else enemies.push(new TIEFighter());
+            enemySpawnTimer = Math.random() * baseRate + 50;
+        }
+
+        specialSpawnTimer--; let specialRateSetting = Math.max(100, 240 - (bossCount * 45));
+        if (specialSpawnTimer <= 0) {
+            if (Math.random() > 0.5) enemies.push(new TIEBomber()); else enemies.push(new TIEInterceptor());
+            specialSpawnTimer = Math.random() * 120 + specialRateSetting;
+        }
+
+        turretSpawnTimer--; let tRate = Math.max(50, 180 - (bossCount * 35));
+        if (turretSpawnTimer <= 0) { turrets.push(new Turret()); turretSpawnTimer = Math.random() * tRate + 70; }
+    }
+
+    // Update Player Charged Missiles
+    for (let m = missiles.length - 1; m >= 0; m--) {
+        let active = missiles[m].update();
+        if (!active) { missiles.splice(m, 1); continue; }
+
+        if (currentBoss && checkCollision(missiles[m], currentBoss)) {
+            triggerProtonDetonation(missiles[m].x, missiles[m].y);
+            currentBoss.hp -= 10; 
+            missiles.splice(m, 1);
+            continue;
+        }
+
+        for (let e = enemies.length - 1; e >= 0; e--) {
+            if (missiles[m] && checkCollision(missiles[m], enemies[e])) {
+                let reward = enemies[e].type === "interceptor" ? 3 : (enemies[e].type === "bomber" ? 2 : 1);
+                triggerProtonDetonation(missiles[m].x, missiles[m].y);
+                createExplosion(enemies[e].x + 15, enemies[e].y + 15, "#00ffff");
+                enemies.splice(e, 1);
+                addPoints(reward);
+                missiles.splice(m, 1);
+                break;
+            }
+        }
+    }
+
+    // Process Player Standard Blasters Projectiles
+    for (let l = playerLasers.length - 1; l >= 0; l--) {
+        playerLasers[l].update(); if (playerLasers[l].x > canvas.width) { playerLasers.splice(l, 1); continue; }
+        
+        for (let b = bombs.length - 1; b >= 0; b--) {
+            if (playerLasers[l] && checkCollision(playerLasers[l], bombs[b])) {
+                let s = new Shockwave(); s.x = bombs[b].x; s.y = bombs[b].y; s.maxRadius = 70; s.color = "#44ccff"; shockwaves.push(s); createExplosion(bombs[b].x, bombs[b].y, "#44aaff", 15);
+                bombs.splice(b, 1); playerLasers.splice(l, 1); break;
+            }
+        }
+    }
+
+    for (let i = bombs.length - 1; i >= 0; i--) { if (!bombs[i].update()) bombs.splice(i, 1); }
+
+    enemyLasers.forEach((laser, elIdx) => {
+        laser.update(); if (checkCollision(laser, player)) { enemyLasers.splice(elIdx, 1); handlePlayerHit(); }
+        if (laser.x < -20) enemyLasers.splice(elIdx, 1);
+    });
+
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        if (!shockwaves[i].update()) {
+            shockwaves.splice(i, 1);
+        } else {
+            let pX = player.x + player.width/2 - shockwaves[i].x; let pY = player.y + player.height/2 - shockwaves[i].y;
+            if (Math.sqrt(pX*pX + pY*pY) < shockwaves[i].radius + 10 && gameTime % 15 === 0) handlePlayerHit();
+
+            if (shockwaves[i].damageEnemies) {
+                for (let t = turrets.length - 1; t >= 0; t--) {
+                    let tdX = turrets[t].x + 15 - shockwaves[i].x; let tdY = turrets[t].y + 12 - shockwaves[i].y;
+                    if (Math.sqrt(tdX*tdX + tdY*tdY) < shockwaves[i].radius) {
+                        createExplosion(turrets[t].x + 15, turrets[t].y + 12, "#ff6600"); turrets.splice(t, 1); addPoints(1);
+                    }
+                }
+                for (let e = enemies.length - 1; e >= 0; e--) {
+                    let edX = enemies[e].x + 15 - shockwaves[i].x; let edY = enemies[e].y + 15 - shockwaves[i].y;
+                    if (Math.sqrt(edX*edX + edY*edY) < shockwaves[i].radius) {
+                        let reward = enemies[e].type === "interceptor" ? 3 : (enemies[e].type === "bomber" ? 2 : 1);
+                        createExplosion(enemies[e].x + 15, enemies[e].y + 15, "#00ffff"); enemies.splice(e, 1); addPoints(reward);
+                    }
+                }
+            }
+        }
+    }
+
+    if (currentBoss) {
+        currentBoss.update(); if (currentBoss && checkCollision(player, currentBoss)) handlePlayerHit();
+        for (let l = playerLasers.length - 1; l >= 0; l--) {
+            if (currentBoss && checkCollision(playerLasers[l], currentBoss)) {
+                playerLasers.splice(l, 1); currentBoss.hp--; createExplosion(playerLasers[l] ? playerLasers[l].x : player.x+50, player.y+15, "#ffaa00");
+                if (currentBoss.hp <= 0) {
+                    createExplosion(currentBoss.x + 40, currentBoss.y + 40, "#ff3300", 30); createExplosion(currentBoss.x + 120, currentBoss.y + 100, "#ff7700", 30);
+                    currentBoss = null; pointsTowardsBoss = 0; bossCount++; addPoints(10); bossVal.innerText = `(Next Boss: 100)`; break;
+                }
+            }
+        }
+    }
+
+    for (let e = enemies.length - 1; e >= 0; e--) {
+        enemies[e].update();
+        if (checkCollision(enemies[e], player)) { createExplosion(enemies[e].x, enemies[e].y, "#ffaa00"); enemies.splice(e, 1); handlePlayerHit(); continue; }
+        
+        for (let l = playerLasers.length - 1; l >= 0; l--) {
+            if (enemies[e] && checkCollision(playerLasers[l], enemies[e])) {
+                playerLasers.splice(l, 1); 
+                enemies[e].hp--; 
+                
+                if (enemies[e].hp <= 0) {
+                    let reward = enemies[e].type === "interceptor" ? 3 : (enemies[e].type === "bomber" ? 2 : 1);
+                    createExplosion(enemies[e].x + enemies[e].width/2, enemies[e].y + enemies[e].height/2, enemies[e].type === "bomber" ? "#33aaff" : (enemies[e].type === "interceptor" ? "#ff0055" : "#ff5500"));
+                    enemies.splice(e, 1); 
+                    addPoints(reward);
+                } else {
+                    createExplosion(playerLasers[l] ? playerLasers[l].x : enemies[e].x, enemies[e].y + 15, "rgba(200, 0, 255, 0.8)", 6);
+                }
+                break;
+            }
+        }
+        if (enemies[e] && enemies[e].x < -40) enemies.splice(e, 1);
+    }
+
+    for (let t = turrets.length - 1; t >= 0; t--) {
+        turrets[t].update();
+        for (let l = playerLasers.length - 1; l >= 0; l--) {
+            if (turrets[t] && checkCollision(playerLasers[l], turrets[t])) {
+                createExplosion(turrets[t].x + turrets[t].width/2, turrets[t].y + turrets[t].height/2, "#ff6600"); turrets.splice(t, 1); playerLasers.splice(l, 1); addPoints(1); break;
+            }
+        }
+        if (turrets[t] && turrets[t].x < -40) turrets.splice(t, 1);
+    }
+
+    particles.forEach((p, index) => { p.update(); if (p.alpha <= 0) particles.splice(index, 1); });
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white"; stars.forEach(star => ctx.fillRect(star.x, star.y, star.size, star.size));
+
+    drawTrenches(); if (currentBoss) currentBoss.draw();
+    turrets.forEach(t => t.draw()); bombs.forEach(b => b.draw()); enemies.forEach(e => e.draw()); playerLasers.forEach(l => l.draw()); missiles.forEach(m => m.draw()); enemyLasers.forEach(el => el.draw()); shockwaves.forEach(s => s.draw()); particles.forEach(p => p.draw());
+    if (gameActive) player.draw();
+
+    let barWidth = 140, barHeight = 6, barX = canvas.width - 160, barY = canvas.height - 25;
+    ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.strokeStyle = weaponJammed ? "#ff3333" : "#555"; ctx.strokeRect(barX, barY, barWidth, barHeight);
+    let heatPct = Math.min(1, weaponHeat / MAX_HEAT);
+    if (weaponJammed) ctx.fillStyle = (gameTime % 10 < 5) ? "#ff3333" : "#333";
+    else if (heatPct > 0.75) ctx.fillStyle = "#ff3333"; else if (heatPct > 0.4) ctx.fillStyle = "#ffaa00"; else ctx.fillStyle = "#33cc33";
+    ctx.fillRect(barX + 1, barY + 1, (barWidth - 2) * heatPct, barHeight - 2);
+
+    ctx.fillStyle = weaponJammed ? "#ff3333" : "#aaa"; ctx.font = "9px Courier New"; ctx.textAlign = "right";
+    ctx.fillText(weaponJammed ? "WEAPONS JAMMED" : "LASER TEMP", barX - 8, barY + 6);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+window.addEventListener('keydown', e => { 
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); 
+    
+    if (!gameActive && (e.key === ' ' || e.key === 'Spacebar')) {
+        resetGame();
+        return;
+    }
+    keys[e.key] = true; 
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function resetGame() {
+    gameActive = true; score = 0; pointsTowardsBoss = 0; gameTime = 0; enemySpawnTimer = 40; turretSpawnTimer = 100; specialSpawnTimer = 150; bossCount = 0; trenchHeightSetting = 50; weaponHeat = 0; weaponJammed = false; spaceHoldDuration = 0;
+    playerLasers = []; missiles = []; enemies = []; enemyLasers = []; turrets = []; bombs = []; shockwaves = []; particles = []; currentBoss = null;
+    scoreVal.innerText = "0"; bossVal.innerText = "(Next Boss: 100)"; shieldStatus.innerText = "SHIELD: READY"; shieldStatus.style.color = "#55f9ff"; gameOverScreen.style.display = "none";
+    player = new Player();
+}
+
+player = new Player();
+loop();
+</script>
+
+</body>
+</html>
